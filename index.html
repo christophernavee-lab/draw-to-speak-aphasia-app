@@ -1,0 +1,1142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#667eea">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="description" content="Draw to Speak - AI communication app for people with aphasia">
+  <link rel="manifest" href="/manifest.json">
+  <title>Draw to Speak</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    body { 
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 16px;
+    }
+    body.high-contrast { background: #000; }
+    
+    .header { text-align: center; margin-bottom: 12px; }
+    .header h1 {
+      color: white;
+      font-size: 2rem;
+      font-weight: 800;
+      margin-bottom: 8px;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+    }
+    
+    .status-badge {
+      display: inline-block;
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    .status-badge.online { background: #27ae60; color: white; }
+    .status-badge.offline { background: #ff6b6b; color: white; }
+    
+    .tabs { display: flex; justify-content: center; gap: 6px; flex-wrap: wrap; }
+    .tab-btn {
+      padding: 8px 16px;
+      background: rgba(255,255,255,0.2);
+      color: white;
+      border: none;
+      border-radius: 20px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-weight: 700;
+      transition: all 0.2s;
+    }
+    .tab-btn.active { background: white; color: #667eea; }
+    
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 20px;
+      box-shadow: 0 15px 50px rgba(0,0,0,0.3);
+      overflow: hidden;
+    }
+    body.high-contrast .container { background: #1a1a1a; border: 2px solid white; }
+    
+    .view { display: none; }
+    .view.active { display: block; }
+    
+    .categories {
+      padding: 12px;
+      background: #f8f9ff;
+      border-bottom: 1px solid #e8e8f0;
+    }
+    body.high-contrast .categories { background: #333; border-color: #555; }
+    .categories p {
+      text-align: center;
+      color: #666;
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-bottom: 10px;
+    }
+    body.high-contrast .categories p { color: #ccc; }
+    .category-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+    .category-btn {
+      padding: 8px;
+      border: 2px solid transparent;
+      border-radius: 10px;
+      background: white;
+      cursor: pointer;
+      font-size: 0.75rem;
+      font-weight: 600;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      transition: all 0.2s;
+    }
+    body.high-contrast .category-btn { background: #333; color: white; }
+    .category-btn.active { border-color: #667eea; background: #667eea; color: white; }
+    .category-btn span.icon { font-size: 1.2rem; }
+    
+    .canvas-area { padding: 10px; background: #fafafa; }
+    body.high-contrast .canvas-area { background: #000; }
+    .canvas-wrapper {
+      background: white;
+      border-radius: 16px;
+      padding: 4px;
+      box-shadow: inset 0 2px 8px rgba(0,0,0,0.1);
+    }
+    canvas {
+      display: block;
+      width: 100%;
+      height: auto;
+      border-radius: 12px;
+      cursor: crosshair;
+      touch-action: none;
+    }
+    
+    .colors { display: flex; justify-content: center; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+    .color-btn {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      border: 3px solid #e0e0e0;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .color-btn.active { border-color: #667eea; transform: scale(1.15); }
+    
+    .brush-sizes { display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 10px; }
+    .brush-sizes span { font-size: 0.8rem; color: #666; font-weight: 600; }
+    .size-btn {
+      border-radius: 50%;
+      background: #e8e8f0;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .size-btn.active { background: #667eea; }
+    .size-btn .dot { border-radius: 50%; }
+    
+    .controls { display: flex; gap: 8px; margin-top: 10px; justify-content: center; }
+    .ctrl-btn {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-weight: 600;
+    }
+    .clear-btn { background: #ff6b6b; color: white; }
+    
+    .guess-section { padding: 12px; padding-top: 0; }
+    .guess-btn {
+      width: 100%;
+      padding: 16px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      font-size: 1.1rem;
+      font-weight: 700;
+      box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+    }
+    .guess-btn:disabled { background: #ccc; box-shadow: none; cursor: wait; }
+    .guess-btn.offline-mode { background: #aaa; }
+    
+    .guesses { padding: 12px; padding-top: 0; display: none; }
+    .guesses.show { display: block; }
+    .guesses p { text-align: center; color: #666; font-size: 0.95rem; font-weight: 600; margin-bottom: 10px; }
+    .guess-grid { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+    .guess-btn-item {
+      padding: 12px 16px;
+      background: #f0f4ff;
+      color: #333;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 0.95rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .guess-btn-item.primary {
+      background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+      color: white;
+      font-size: 1.05rem;
+    }
+    .guess-btn-item .save-icon { opacity: 0.7; cursor: pointer; }
+    .guesses .hint { text-align: center; font-size: 0.8rem; color: #888; margin-top: 10px; }
+    
+    /* Whiteboard mode indicator */
+    .whiteboard-banner {
+      display: none;
+      background: linear-gradient(135deg, #f39c12 0%, #e74c3c 100%);
+      color: white;
+      padding: 12px;
+      text-align: center;
+      font-weight: 600;
+    }
+    .whiteboard-banner.show { display: block; }
+    .whiteboard-banner p { margin: 0; font-size: 0.9rem; }
+    .whiteboard-banner small { opacity: 0.9; font-size: 0.8rem; }
+    
+    /* Type word input for whiteboard mode */
+    .type-word-section {
+      display: none;
+      padding: 12px;
+      padding-top: 0;
+    }
+    .type-word-section.show { display: block; }
+    .type-word-input {
+      display: flex;
+      gap: 8px;
+    }
+    .type-word-input input {
+      flex: 1;
+      padding: 12px 16px;
+      border: 2px solid #e8e8f0;
+      border-radius: 10px;
+      font-size: 1rem;
+      font-weight: 600;
+    }
+    .type-word-input button {
+      padding: 12px 20px;
+      background: #27ae60;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: 700;
+    }
+    
+    .phrases-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; padding: 16px; }
+    .phrase-btn {
+      padding: 16px;
+      border: none;
+      border-radius: 14px;
+      cursor: pointer;
+      font-size: 1rem;
+      font-weight: 700;
+      color: white;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+    }
+    .phrase-btn .icon { font-size: 1.8rem; }
+    
+    .locations-section { padding: 16px; }
+    .locations-section h2 { text-align: center; color: #333; font-size: 1.2rem; margin-bottom: 12px; }
+    body.high-contrast .locations-section h2 { color: white; }
+    .location-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 16px; }
+    .location-btn {
+      padding: 12px;
+      background: #f0f0f0;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      font-size: 0.95rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    .location-btn.active { background: #667eea; color: white; }
+    .location-btn .icon { font-size: 1.3rem; }
+    .location-phrases { display: none; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+    .location-phrases.show { display: grid; }
+    .loc-phrase-btn {
+      padding: 12px;
+      background: #f8f9ff;
+      border: 1px solid #e0e0e0;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-weight: 600;
+    }
+    
+    .my-pictures { padding: 12px; border-top: 1px solid #e8e8f0; background: #f5f7fa; display: none; }
+    .my-pictures.show { display: block; }
+    .pictures-toggle {
+      width: 100%;
+      padding: 10px;
+      background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 1rem;
+      font-weight: 700;
+      color: white;
+    }
+    .pictures-grid {
+      display: none;
+      grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+      gap: 10px;
+      margin-top: 12px;
+    }
+    .pictures-grid.show { display: grid; }
+    .picture-card {
+      position: relative;
+      background: white;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      cursor: pointer;
+    }
+    .picture-card img {
+      width: 100%;
+      aspect-ratio: 1;
+      object-fit: contain;
+      background: #fafafa;
+    }
+    .picture-card .label {
+      padding: 6px;
+      background: #667eea;
+      color: white;
+      text-align: center;
+      font-size: 0.8rem;
+      font-weight: 700;
+    }
+    .picture-card .delete {
+      position: absolute;
+      top: 3px;
+      right: 3px;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.9);
+      border: none;
+      cursor: pointer;
+      font-size: 0.6rem;
+    }
+    
+    .accessibility { padding: 12px; border-top: 1px solid #e8e8f0; background: #f8f9ff; }
+    body.high-contrast .accessibility { background: #333; border-color: #555; }
+    .access-toggle {
+      width: 100%;
+      padding: 8px;
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: #667eea;
+    }
+    .access-options { display: none; margin-top: 12px; }
+    .access-options.show { display: block; }
+    .access-option {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      background: white;
+      border-radius: 10px;
+      margin-bottom: 8px;
+      border: 1px solid #e8e8f0;
+    }
+    body.high-contrast .access-option { background: #222; border-color: #555; color: white; }
+    .access-option span { font-weight: 600; }
+    .toggle-switch {
+      width: 50px;
+      height: 28px;
+      border-radius: 14px;
+      border: none;
+      cursor: pointer;
+      background: #ccc;
+      position: relative;
+    }
+    .toggle-switch.on { background: #27ae60; }
+    .toggle-switch .knob {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: white;
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      transition: left 0.2s;
+    }
+    .toggle-switch.on .knob { left: 25px; }
+    
+    .voice-section { margin-top: 12px; padding-top: 12px; border-top: 1px solid #e8e8f0; }
+    body.high-contrast .voice-section { border-color: #555; }
+    .voice-section label { display: block; font-weight: 600; margin-bottom: 8px; color: #333; }
+    body.high-contrast .voice-section label { color: white; }
+    .voice-list { display: flex; flex-direction: column; gap: 6px; max-height: 200px; overflow-y: auto; }
+    .voice-option {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      background: white;
+      border: 2px solid #e8e8f0;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    body.high-contrast .voice-option { background: #222; border-color: #555; color: white; }
+    .voice-option:hover { border-color: #667eea; }
+    .voice-option.selected { border-color: #667eea; background: #f0f4ff; }
+    body.high-contrast .voice-option.selected { background: #333; border-color: #0f0; }
+    .voice-option .gender { font-size: 1.2rem; }
+    .voice-option .name { flex: 1; font-weight: 600; font-size: 0.9rem; }
+    .voice-option .preview-btn {
+      padding: 4px 10px;
+      background: #667eea;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+    
+    .toast {
+      position: fixed;
+      bottom: 100px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+      color: white;
+      padding: 14px 28px;
+      border-radius: 30px;
+      font-weight: 700;
+      font-size: 1rem;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+      opacity: 0;
+      transition: all 0.3s ease;
+      z-index: 1000;
+      pointer-events: none;
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    .toast.error { background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%); }
+    
+    .footer { padding: 12px; background: #f0f0f5; text-align: center; }
+    body.high-contrast .footer { background: #333; }
+    .footer p { font-size: 0.8rem; color: #888; }
+    
+    body.large-text { font-size: 1.3rem; }
+    body.large-text .header h1 { font-size: 2.6rem; }
+    body.large-text .tab-btn { font-size: 1.1rem; padding: 10px 20px; }
+    body.large-text .phrase-btn { font-size: 1.3rem; }
+    body.large-text .guess-btn { font-size: 1.4rem; }
+  </style>
+</head>
+<body>
+  <div class="toast" id="toast"></div>
+
+  <div class="header">
+    <h1>✏️ Draw to Speak</h1>
+    <span class="status-badge online" id="status-badge">🟢 Online - AI Ready</span>
+    <div class="tabs">
+      <button class="tab-btn active" data-view="draw">✏️ Draw</button>
+      <button class="tab-btn" data-view="phrases">💬 Phrases</button>
+      <button class="tab-btn" data-view="locations">📍 Places</button>
+    </div>
+  </div>
+
+  <div class="container">
+    
+    <!-- DRAW VIEW -->
+    <div class="view active" id="view-draw">
+      
+      <!-- Whiteboard mode banner -->
+      <div class="whiteboard-banner" id="whiteboard-banner">
+        <p>📝 Whiteboard Mode</p>
+        <small>Draw and type words to save • AI available when online</small>
+      </div>
+      
+      <div class="categories">
+        <p>What are you drawing? (optional)</p>
+        <div class="category-grid" id="category-grid"></div>
+      </div>
+      
+      <div class="canvas-area">
+        <div class="canvas-wrapper">
+          <canvas id="canvas" width="560" height="400"></canvas>
+        </div>
+        <div class="colors" id="colors"></div>
+        <div class="brush-sizes" id="brush-sizes"><span>Size:</span></div>
+        <div class="controls">
+          <button class="ctrl-btn clear-btn" id="clear-btn">🗑️ Clear</button>
+        </div>
+      </div>
+      
+      <div class="guess-section">
+        <button class="guess-btn" id="guess-btn">✨ What am I drawing?</button>
+      </div>
+      
+      <!-- Type word section for offline -->
+      <div class="type-word-section" id="type-word-section">
+        <div class="type-word-input">
+          <input type="text" id="type-word-input" placeholder="Type word to save...">
+          <button id="type-word-btn">💾 Save</button>
+        </div>
+      </div>
+      
+      <div class="guesses" id="guesses">
+        <p>🎯 Is it one of these?</p>
+        <div class="guess-grid" id="guess-grid"></div>
+        <p class="hint">Tap word to speak • 📌 to save</p>
+      </div>
+      
+      <div class="my-pictures" id="my-pictures">
+        <button class="pictures-toggle" id="pictures-toggle">🖼️ My Pictures (<span id="picture-count">0</span>) ▼</button>
+        <div class="pictures-grid" id="pictures-grid"></div>
+      </div>
+    </div>
+    
+    <!-- PHRASES VIEW -->
+    <div class="view" id="view-phrases">
+      <div class="phrases-grid" id="phrases-grid"></div>
+    </div>
+    
+    <!-- LOCATIONS VIEW -->
+    <div class="view" id="view-locations">
+      <div class="locations-section">
+        <h2>📍 Location Phrases</h2>
+        <div class="location-grid" id="location-grid"></div>
+        <div class="location-phrases" id="location-phrases"></div>
+      </div>
+    </div>
+    
+    <!-- Settings -->
+    <div class="accessibility">
+      <button class="access-toggle" id="access-toggle">⚙️ Settings ▼</button>
+      <div class="access-options" id="access-options">
+        <div class="access-option">
+          <span>🔤 Large Text</span>
+          <button class="toggle-switch" id="toggle-large-text"><div class="knob"></div></button>
+        </div>
+        <div class="access-option">
+          <span>🌓 High Contrast</span>
+          <button class="toggle-switch" id="toggle-high-contrast"><div class="knob"></div></button>
+        </div>
+        <div class="voice-section">
+          <label>🔊 Voice Selection</label>
+          <div class="voice-list" id="voice-list"><p style="color: #888; font-size: 0.85rem;">Loading voices...</p></div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="footer">
+      <p>Draw to Speak • By Coach Chris 💜</p>
+    </div>
+  </div>
+
+  <script>
+    // ============================================
+    // STATE
+    // ============================================
+    let isDrawing = false;
+    let currentColor = '#1a1a2e';
+    let brushSize = 8;
+    let lastX = 0;
+    let lastY = 0;
+    let selectedCategory = null;
+    let savedPatterns = [];
+    let selectedVoice = null;
+    let currentLocation = null;
+    let isOnline = navigator.onLine;
+    
+    // API endpoint - change this to your deployed URL
+    const API_ENDPOINT = '/api/guess';
+    
+    // ============================================
+    // DATA
+    // ============================================
+    const colors = ['#1a1a2e', '#e74c3c', '#e67e22', '#f1c40f', '#27ae60', '#3498db', '#9b59b6', '#e91e63', '#795548'];
+    const brushSizes = [4, 8, 14, 22];
+    
+    const categories = [
+      { id: 'food', label: 'Food', icon: '🍎' },
+      { id: 'person', label: 'Person', icon: '👤' },
+      { id: 'place', label: 'Place', icon: '📍' },
+      { id: 'feeling', label: 'Feeling', icon: '💭' },
+      { id: 'thing', label: 'Object', icon: '📦' },
+      { id: 'action', label: 'Action', icon: '🏃' },
+    ];
+    
+    const quickPhrases = [
+      { text: 'Yes', icon: '✓', color: '#27ae60' },
+      { text: 'No', icon: '✗', color: '#e74c3c' },
+      { text: 'Help', icon: '🆘', color: '#e74c3c' },
+      { text: 'Thank you', icon: '🙏', color: '#3498db' },
+      { text: "I don't understand", icon: '❓', color: '#f39c12' },
+      { text: 'Please wait', icon: '⏳', color: '#9b59b6' },
+      { text: 'I need water', icon: '💧', color: '#3498db' },
+      { text: "I'm in pain", icon: '😣', color: '#e74c3c' },
+    ];
+    
+    const locationBoards = {
+      hospital: { name: 'Hospital', icon: '🏥', phrases: ['I need a nurse', "I'm in pain", 'I need water', 'I need the bathroom', "I can't breathe", 'I feel dizzy', 'I need my medicine', 'Call my family'] },
+      home: { name: 'Home', icon: '🏠', phrases: ["I'm hungry", "I'm thirsty", "I'm tired", "I'm cold", "I'm hot", 'Turn on TV', 'Help me up', 'I need rest'] },
+      restaurant: { name: 'Restaurant', icon: '🍽️', phrases: ['Water please', 'Menu please', 'Check please', 'Bathroom?', 'More napkins', 'Too spicy', 'Delicious', "I'm allergic"] },
+      store: { name: 'Store', icon: '🛒', phrases: ['How much?', 'Where is...', 'I need help', 'Too expensive', "I'll take it", 'No thank you', 'Do you have...', 'Cash or card?'] }
+    };
+    
+    // ============================================
+    // ELEMENTS
+    // ============================================
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    
+    // ============================================
+    // INIT
+    // ============================================
+    function init() {
+      // Load saved data
+      try {
+        const saved = localStorage.getItem('dts_patterns');
+        if (saved) savedPatterns = JSON.parse(saved);
+        
+        if (localStorage.getItem('dts_largeText') === 'true') {
+          document.body.classList.add('large-text');
+          document.getElementById('toggle-large-text').classList.add('on');
+        }
+        if (localStorage.getItem('dts_highContrast') === 'true') {
+          document.body.classList.add('high-contrast');
+          document.getElementById('toggle-high-contrast').classList.add('on');
+        }
+      } catch(e) {}
+      
+      // Load voices
+      loadVoices();
+      if (speechSynthesis.onvoiceschanged !== undefined) {
+        speechSynthesis.onvoiceschanged = loadVoices;
+      }
+      
+      // Init canvas
+      initCanvas();
+      
+      // Build UI
+      buildCategories();
+      buildColors();
+      buildBrushSizes();
+      buildPhrases();
+      buildLocations();
+      updatePicturesUI();
+      
+      // Event listeners
+      setupCanvasEvents();
+      setupUIEvents();
+      
+      // Online/offline detection
+      updateOnlineStatus();
+      window.addEventListener('online', updateOnlineStatus);
+      window.addEventListener('offline', updateOnlineStatus);
+    }
+    
+    function updateOnlineStatus() {
+      isOnline = navigator.onLine;
+      const badge = document.getElementById('status-badge');
+      const guessBtn = document.getElementById('guess-btn');
+      const whiteboardBanner = document.getElementById('whiteboard-banner');
+      const typeWordSection = document.getElementById('type-word-section');
+      
+      if (isOnline) {
+        badge.className = 'status-badge online';
+        badge.textContent = '🟢 Online - AI Ready';
+        guessBtn.textContent = '✨ What am I drawing?';
+        guessBtn.classList.remove('offline-mode');
+        whiteboardBanner.classList.remove('show');
+        typeWordSection.classList.remove('show');
+      } else {
+        badge.className = 'status-badge offline';
+        badge.textContent = '🔴 Offline - Whiteboard Mode';
+        guessBtn.textContent = '📶 AI needs internet';
+        guessBtn.classList.add('offline-mode');
+        whiteboardBanner.classList.add('show');
+        typeWordSection.classList.add('show');
+      }
+    }
+    
+    function loadVoices() {
+      const allVoices = speechSynthesis.getVoices();
+      const voices = allVoices.filter(v => v.lang.startsWith('en'));
+      
+      voices.sort((a, b) => {
+        const aScore = (a.name.includes('Natural') || a.name.includes('Premium') || a.name.includes('Google') || a.name.includes('Microsoft')) ? 1 : 0;
+        const bScore = (b.name.includes('Natural') || b.name.includes('Premium') || b.name.includes('Google') || b.name.includes('Microsoft')) ? 1 : 0;
+        return bScore - aScore;
+      });
+      
+      const savedVoiceName = localStorage.getItem('dts_voice');
+      if (voices.length > 0) {
+        if (savedVoiceName) {
+          const saved = voices.find(v => v.name === savedVoiceName);
+          selectedVoice = saved || voices[0];
+        } else {
+          selectedVoice = voices[0];
+        }
+      }
+      
+      const voiceList = document.getElementById('voice-list');
+      if (!voiceList || voices.length === 0) return;
+      
+      voiceList.innerHTML = '';
+      voices.slice(0, 10).forEach(voice => {
+        const div = document.createElement('div');
+        div.className = 'voice-option' + (selectedVoice && selectedVoice.name === voice.name ? ' selected' : '');
+        
+        const isFemale = /female|woman|girl|samantha|victoria|karen|moira|fiona|kate|susan|zira|hazel|linda|jenny|aria|sara|sonia/i.test(voice.name);
+        const gender = isFemale ? '👩' : '👨';
+        
+        let displayName = voice.name
+          .replace('Microsoft ', '').replace('Google ', '')
+          .replace(' Desktop', '').replace(' Online (Natural)', ' ✨').replace(' Online', '');
+        
+        div.innerHTML = `<span class="gender">${gender}</span><span class="name">${displayName}</span><button class="preview-btn">▶ Test</button>`;
+        
+        div.onclick = (e) => {
+          if (e.target.classList.contains('preview-btn')) return;
+          selectedVoice = voice;
+          localStorage.setItem('dts_voice', voice.name);
+          document.querySelectorAll('.voice-option').forEach(v => v.classList.remove('selected'));
+          div.classList.add('selected');
+        };
+        
+        div.querySelector('.preview-btn').onclick = (e) => {
+          e.stopPropagation();
+          speechSynthesis.cancel();
+          const utterance = new SpeechSynthesisUtterance('Hello, I am your voice assistant.');
+          utterance.voice = voice;
+          utterance.rate = 0.9;
+          speechSynthesis.speak(utterance);
+        };
+        
+        voiceList.appendChild(div);
+      });
+    }
+    
+    function initCanvas() {
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.lineWidth = brushSize;
+      ctx.strokeStyle = currentColor;
+    }
+    
+    // ============================================
+    // CANVAS DRAWING
+    // ============================================
+    function getPos(e) {
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+      
+      let clientX, clientY;
+      if (e.touches && e.touches.length > 0) {
+        clientX = e.touches[0].clientX;
+        clientY = e.touches[0].clientY;
+      } else {
+        clientX = e.clientX;
+        clientY = e.clientY;
+      }
+      
+      return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY };
+    }
+    
+    function startDraw(e) {
+      e.preventDefault();
+      isDrawing = true;
+      const pos = getPos(e);
+      lastX = pos.x;
+      lastY = pos.y;
+      
+      ctx.fillStyle = currentColor;
+      ctx.beginPath();
+      ctx.arc(pos.x, pos.y, brushSize / 2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    
+    function draw(e) {
+      if (!isDrawing) return;
+      e.preventDefault();
+      
+      const pos = getPos(e);
+      ctx.strokeStyle = currentColor;
+      ctx.lineWidth = brushSize;
+      ctx.beginPath();
+      ctx.moveTo(lastX, lastY);
+      ctx.lineTo(pos.x, pos.y);
+      ctx.stroke();
+      
+      lastX = pos.x;
+      lastY = pos.y;
+    }
+    
+    function stopDraw(e) {
+      if (e) e.preventDefault();
+      isDrawing = false;
+    }
+    
+    function clearCanvas() {
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      document.getElementById('guesses').classList.remove('show');
+    }
+    
+    function setupCanvasEvents() {
+      canvas.addEventListener('mousedown', startDraw);
+      canvas.addEventListener('mousemove', draw);
+      canvas.addEventListener('mouseup', stopDraw);
+      canvas.addEventListener('mouseleave', stopDraw);
+      
+      canvas.addEventListener('touchstart', startDraw, { passive: false });
+      canvas.addEventListener('touchmove', draw, { passive: false });
+      canvas.addEventListener('touchend', stopDraw, { passive: false });
+    }
+    
+    // ============================================
+    // SPEECH
+    // ============================================
+    function speak(text) {
+      speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.rate = 0.9;
+      if (selectedVoice) utterance.voice = selectedVoice;
+      speechSynthesis.speak(utterance);
+    }
+    
+    // ============================================
+    // AI GUESS
+    // ============================================
+    async function guessDrawing() {
+      if (!isOnline) {
+        showToast('📶 No internet - use whiteboard mode below', true);
+        return;
+      }
+      
+      const btn = document.getElementById('guess-btn');
+      btn.disabled = true;
+      btn.textContent = '🔍 Thinking...';
+      
+      try {
+        const imageData = canvas.toDataURL('image/png').split(',')[1];
+        const categoryHint = selectedCategory 
+          ? categories.find(c => c.id === selectedCategory)?.label 
+          : null;
+        
+        const response = await fetch(API_ENDPOINT, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ image: imageData, category: categoryHint })
+        });
+        
+        if (!response.ok) throw new Error('API error');
+        
+        const data = await response.json();
+        
+        if (data.guesses && data.guesses.length > 0) {
+          showGuesses(data.guesses.slice(0, 6));
+        } else {
+          showToast('Could not recognize drawing', true);
+        }
+        
+      } catch(err) {
+        console.error(err);
+        showToast('❌ Could not get guesses. Try again.', true);
+      }
+      
+      btn.disabled = false;
+      btn.textContent = '✨ What am I drawing?';
+    }
+    
+    function showGuesses(guesses) {
+      const grid = document.getElementById('guess-grid');
+      grid.innerHTML = '';
+      
+      guesses.forEach((guess, i) => {
+        const btn = document.createElement('button');
+        btn.className = 'guess-btn-item' + (i === 0 ? ' primary' : '');
+        btn.innerHTML = `<span>🔊</span><span>${guess}</span><span class="save-icon" data-word="${guess}">📌</span>`;
+        btn.onclick = () => speak(guess);
+        grid.appendChild(btn);
+      });
+      
+      grid.querySelectorAll('.save-icon').forEach(icon => {
+        icon.onclick = (e) => {
+          e.stopPropagation();
+          savePattern(icon.dataset.word);
+        };
+      });
+      
+      document.getElementById('guesses').classList.add('show');
+    }
+    
+    // ============================================
+    // SAVE PATTERNS
+    // ============================================
+    function savePattern(word) {
+      if (!word || word.trim() === '') {
+        showToast('Please enter a word', true);
+        return;
+      }
+      
+      const imageData = canvas.toDataURL('image/png');
+      const existing = savedPatterns.findIndex(p => p.word.toLowerCase() === word.toLowerCase());
+      
+      if (existing >= 0) {
+        savedPatterns[existing] = { ...savedPatterns[existing], imageData, category: selectedCategory };
+      } else {
+        savedPatterns.push({ id: Date.now(), word: word.trim(), imageData, category: selectedCategory });
+      }
+      
+      localStorage.setItem('dts_patterns', JSON.stringify(savedPatterns));
+      updatePicturesUI();
+      showToast(`✓ Saved "${word}"!`);
+      speak(word);
+    }
+    
+    function deletePattern(id) {
+      savedPatterns = savedPatterns.filter(p => p.id !== id);
+      localStorage.setItem('dts_patterns', JSON.stringify(savedPatterns));
+      updatePicturesUI();
+    }
+    
+    function updatePicturesUI() {
+      const container = document.getElementById('my-pictures');
+      const count = document.getElementById('picture-count');
+      const grid = document.getElementById('pictures-grid');
+      
+      count.textContent = savedPatterns.length;
+      
+      if (savedPatterns.length > 0) {
+        container.classList.add('show');
+        grid.innerHTML = '';
+        
+        savedPatterns.forEach(pattern => {
+          const card = document.createElement('div');
+          card.className = 'picture-card';
+          card.innerHTML = `
+            <img src="${pattern.imageData}" alt="${pattern.word}">
+            <div class="label">🔊 ${pattern.word}</div>
+            <button class="delete" data-id="${pattern.id}">✕</button>
+          `;
+          card.onclick = () => speak(pattern.word);
+          grid.appendChild(card);
+        });
+        
+        grid.querySelectorAll('.delete').forEach(btn => {
+          btn.onclick = (e) => {
+            e.stopPropagation();
+            deletePattern(parseInt(btn.dataset.id));
+          };
+        });
+      } else {
+        container.classList.remove('show');
+      }
+    }
+    
+    // ============================================
+    // BUILD UI
+    // ============================================
+    function buildCategories() {
+      const grid = document.getElementById('category-grid');
+      categories.forEach(cat => {
+        const btn = document.createElement('button');
+        btn.className = 'category-btn';
+        btn.dataset.id = cat.id;
+        btn.innerHTML = `<span class="icon">${cat.icon}</span><span>${cat.label}</span>`;
+        btn.onclick = () => {
+          document.querySelectorAll('.category-btn').forEach(b => b.classList.remove('active'));
+          if (selectedCategory === cat.id) {
+            selectedCategory = null;
+          } else {
+            selectedCategory = cat.id;
+            btn.classList.add('active');
+          }
+        };
+        grid.appendChild(btn);
+      });
+    }
+    
+    function buildColors() {
+      const container = document.getElementById('colors');
+      colors.forEach(color => {
+        const btn = document.createElement('button');
+        btn.className = 'color-btn' + (color === currentColor ? ' active' : '');
+        btn.style.background = color;
+        btn.onclick = () => {
+          currentColor = color;
+          document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+        };
+        container.appendChild(btn);
+      });
+    }
+    
+    function buildBrushSizes() {
+      const container = document.getElementById('brush-sizes');
+      brushSizes.forEach(size => {
+        const btn = document.createElement('button');
+        btn.className = 'size-btn' + (size === brushSize ? ' active' : '');
+        btn.style.width = (size + 20) + 'px';
+        btn.style.height = (size + 20) + 'px';
+        
+        const dot = document.createElement('div');
+        dot.className = 'dot';
+        dot.style.width = size + 'px';
+        dot.style.height = size + 'px';
+        dot.style.background = size === brushSize ? 'white' : currentColor;
+        btn.appendChild(dot);
+        
+        btn.onclick = () => {
+          brushSize = size;
+          document.querySelectorAll('.size-btn').forEach(b => {
+            b.classList.remove('active');
+            b.querySelector('.dot').style.background = currentColor;
+          });
+          btn.classList.add('active');
+          btn.querySelector('.dot').style.background = 'white';
+        };
+        container.appendChild(btn);
+      });
+    }
+    
+    function buildPhrases() {
+      const grid = document.getElementById('phrases-grid');
+      quickPhrases.forEach(phrase => {
+        const btn = document.createElement('button');
+        btn.className = 'phrase-btn';
+        btn.style.background = phrase.color;
+        btn.innerHTML = `<span class="icon">${phrase.icon}</span><span>${phrase.text}</span>`;
+        btn.onclick = () => speak(phrase.text);
+        grid.appendChild(btn);
+      });
+    }
+    
+    function buildLocations() {
+      const grid = document.getElementById('location-grid');
+      const phrasesDiv = document.getElementById('location-phrases');
+      
+      Object.entries(locationBoards).forEach(([key, loc]) => {
+        const btn = document.createElement('button');
+        btn.className = 'location-btn';
+        btn.dataset.loc = key;
+        btn.innerHTML = `<span class="icon">${loc.icon}</span><span>${loc.name}</span>`;
+        btn.onclick = () => {
+          document.querySelectorAll('.location-btn').forEach(b => b.classList.remove('active'));
+          
+          if (currentLocation === key) {
+            currentLocation = null;
+            phrasesDiv.classList.remove('show');
+          } else {
+            currentLocation = key;
+            btn.classList.add('active');
+            
+            phrasesDiv.innerHTML = '';
+            loc.phrases.forEach(phrase => {
+              const pBtn = document.createElement('button');
+              pBtn.className = 'loc-phrase-btn';
+              pBtn.textContent = '🔊 ' + phrase;
+              pBtn.onclick = () => speak(phrase);
+              phrasesDiv.appendChild(pBtn);
+            });
+            phrasesDiv.classList.add('show');
+          }
+        };
+        grid.appendChild(btn);
+      });
+    }
+    
+    function showToast(message, isError = false) {
+      const toast = document.getElementById('toast');
+      toast.textContent = message;
+      toast.className = 'toast show' + (isError ? ' error' : '');
+      setTimeout(() => toast.classList.remove('show'), 2500);
+    }
+    
+    // ============================================
+    // UI EVENTS
+    // ============================================
+    function setupUIEvents() {
+      // Tabs
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.onclick = () => {
+          document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+          document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+          btn.classList.add('active');
+          document.getElementById('view-' + btn.dataset.view).classList.add('active');
+        };
+      });
+      
+      // Clear
+      document.getElementById('clear-btn').onclick = clearCanvas;
+      
+      // Guess
+      document.getElementById('guess-btn').onclick = guessDrawing;
+      
+      // Type word (offline mode)
+      document.getElementById('type-word-btn').onclick = () => {
+        const input = document.getElementById('type-word-input');
+        savePattern(input.value);
+        input.value = '';
+      };
+      document.getElementById('type-word-input').onkeypress = (e) => {
+        if (e.key === 'Enter') {
+          document.getElementById('type-word-btn').click();
+        }
+      };
+      
+      // Pictures toggle
+      document.getElementById('pictures-toggle').onclick = () => {
+        document.getElementById('pictures-grid').classList.toggle('show');
+      };
+      
+      // Accessibility toggle
+      document.getElementById('access-toggle').onclick = () => {
+        document.getElementById('access-options').classList.toggle('show');
+      };
+      
+      // Large text
+      document.getElementById('toggle-large-text').onclick = function() {
+        this.classList.toggle('on');
+        document.body.classList.toggle('large-text');
+        localStorage.setItem('dts_largeText', this.classList.contains('on'));
+      };
+      
+      // High contrast
+      document.getElementById('toggle-high-contrast').onclick = function() {
+        this.classList.toggle('on');
+        document.body.classList.toggle('high-contrast');
+        localStorage.setItem('dts_highContrast', this.classList.contains('on'));
+      };
+    }
+    
+    // ============================================
+    // START
+    // ============================================
+    init();
+  </script>
+</body>
+</html>
